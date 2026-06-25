@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تبدیل عکس به PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e12;
+    --surface: #16161d;
+    --surface2: #1e1e28;
+    --border: #2a2a38;
+    --accent: #7c6af7;
+    --accent-glow: rgba(124, 106, 247, 0.18);
+    --accent-soft: #a594ff;
+    --text: #e8e6f0;
+    --text-dim: #8884a0;
+    --danger: #f04f6a;
+    --success: #3fd68a;
+    --radius: 14px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Vazirmatn', sans-serif;
+    line-height: 1.6;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 32px 20px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--accent), #b06af7);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-soft), #d8b4fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 4px;
+  }
+
+  .main-card {
+    width: 100%;
+    max-width: 780px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+
+  /* Drop Zone */
+  #dropzone {
+    position: relative;
+    margin: 24px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 56px 2px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--surface2);
+    overflow: hidden;
+  }
+
+  #dropzone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  #dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(124, 106, 247, 0.07);
+  }
+
+  #dropzone.drag-over::before {
+    opacity: 1;
+  }
+
+  #dropzone:hover {
+    border-color: rgba(124, 106, 247, 0.5);
+  }
+
+  .dz-icon {
+    font-size: 3rem;
+    margin-bottom: 14px;
+    display: block;
+    filter: grayscale(0.3);
+  }
+
+  .dz-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .dz-hint {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .dz-hint span {
+    color: var(--accent-soft);
+  }
+
+  .dz-formats {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .fmt-badge {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  #fileInput { display: none; }
+
+  /* Controls bar */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .counter {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .counter strong {
+    color: var(--accent-soft);
+  }
+
+  .bar-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 9px;
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+  }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--text);
+    border-color: rgba(124, 106, 247, 0.4);
+  }
+
+  .btn-danger {
+    background: rgba(240, 79, 106, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(240, 79, 106, 0.25);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(240, 79, 106, 0.18);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #9b6af7);
+    color: #fff;
+    box-shadow: 0 4px 18px var(--accent-glow);
+    padding: 11px 28px;
+    font-size: 0.95rem;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(124, 106, 247, 0.35);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Options */
+  .options-section {
+    padding: 0 24px 20px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .option-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .option-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 0.875rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238884a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 12px center;
+    padding-left: 32px;
+  }
+
+  .option-select:focus {
+    border-color: var(--accent);
+  }
+
+  /* Grid */
+  #imageGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 0 24px 24px;
+    min-height: 0;
+  }
+
+  .thumb-card {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    cursor: grab;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+    user-select: none;
+  }
+
+  .thumb-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    border-color: rgba(124, 106, 247, 0.4);
+  }
+
+  .thumb-card.dragging {
+    opacity: 0.45;
+    transform: scale(0.96);
+    cursor: grabbing;
+  }
+
+  .thumb-card.drag-target {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+
+  .thumb-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  .thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px;
+  }
+
+  .thumb-card:hover .thumb-overlay { opacity: 1; }
+
+  .thumb-num {
+    align-self: flex-start;
+    background: rgba(124, 106, 247, 0.85);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 5px;
+    padding: 2px 7px;
+    backdrop-filter: blur(4px);
+  }
+
+  .thumb-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+
+  .thumb-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+    backdrop-filter: blur(4px);
+  }
+
+  .thumb-btn-del {
+    background: rgba(240, 79, 106, 0.8);
+    color: #fff;
+  }
+
+  .thumb-btn-del:hover { background: var(--danger); }
+
+  .thumb-btn-rot {
+    background: rgba(124, 106, 247, 0.8);
+    color: #fff;
+  }
+
+  .thumb-btn-rot:hover { background: var(--accent); }
+
+  .thumb-name {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+
+  /* Footer action */
+  .footer-action {
+    padding: 0 24px 24px;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Progress */
+  #progressWrap {
+    display: none;
+    padding: 0 24px 20px;
+  }
+
+  .progress-bar-bg {
+    background: var(--surface2);
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #b06af7);
+    border-radius: 8px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  #toast.success { border-color: rgba(63, 214, 138, 0.4); color: var(--success); }
+  #toast.error { border-color: rgba(240, 79, 106, 0.4); color: var(--danger); }
+  #toast.info { border-color: rgba(124, 106, 247, 0.4); color: var(--accent-soft); }
+
+  /* Empty state */
+  .empty-grid {
+    display: none;
+  }
+
+  #imageGrid:empty + .empty-grid {
+    display: block;
+    padding: 0 24px 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 24px 20px;
+  }
+
+  @media (max-width: 500px) {
+    h1 { font-size: 1.4rem; }
+    #imageGrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <div class="logo-icon">🖼️</div>
+  </div>
+  <h1>تبدیل عکس به PDF</h1>
+  <p class="subtitle">بدون افت کیفیت · فشرده‌سازی نمی‌شود · کاملاً آفلاین</p>
+</header>
+
+<div class="main-card">
+
+  <!-- Drop Zone -->
+  <div id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <span class="dz-icon">📂</span>
+    <p class="dz-title">عکس‌ها را اینجا بیاندازید</p>
+    <p class="dz-hint">یا کلیک کنید · <span>Ctrl+V</span> برای جایگذاری از کلیپ‌بورد</p>
+    <div class="dz-formats">
+      <span class="fmt-badge">JPG</span>
+      <span class="fmt-badge">PNG</span>
+      <span class="fmt-badge">WEBP</span>
+      <span class="fmt-badge">GIF</span>
+      <span class="fmt-badge">BMP</span>
+      <span class="fmt-badge">TIFF</span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" multiple>
+
+  <!-- Controls -->
+  <div class="controls-bar" id="controlsBar" style="display:none">
+    <div class="counter">
+      <strong id="imgCount">0</strong> عکس · ترتیب با درگ تغییر می‌کند
+    </div>
+    <div class="bar-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('fileInput').click()">
+        ➕ افزودن بیشتر
+      </button>
+      <button class="btn btn-danger" onclick="clearAll()">
+        🗑️ حذف همه
+      </button>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <div class="options-section" id="optionsSection" style="display:none">
+    <div class="option-group">
+      <span class="option-label">اندازه صفحه</span>
+      <select class="option-select" id="pageSize">
+        <option value="fit">متناسب با عکس (بدون حاشیه)</option>
+        <option value="A4">A4 (عمودی)</option>
+        <option value="A4L">A4 (افقی)</option>
+        <option value="A3">A3</option>
+        <option value="Letter">Letter</option>
+      </select>
+    </div>
+    <div class="option-group">
+      <span class="option-label">حاشیه صفحه</span>
+      <select class="option-select" id="pageMargin">
+        <option value="0">بدون حاشیه</option>
+        <option value="20">کوچک (۲۰ pt)</option>
+        <option value="40" selected>متوسط (۴۰ pt)</option>
+        <option value="60">بزرگ (۶۰ pt)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="divider" id="divider" style="display:none"></div>
+
+  <!-- Image Grid -->
+  <div id="imageGrid"></div>
+  <div class="empty-grid"></div>
+
+  <!-- Progress -->
+  <div id="progressWrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <p class="progress-label" id="progressLabel">در حال ساخت PDF...</p>
+  </div>
+
+  <!-- Export button -->
+  <div class="footer-action" id="footerAction" style="display:none">
+    <button class="btn btn-primary" id="exportBtn" onclick="generatePDF()">
+      ⬇️ دانلود PDF
+    </button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function() {
+  const images = []; // { file, dataUrl, rotation }
+  let dragSrc = null;
+
+  // ─── Paste support ──────────────────────────────────────────────
+  document.addEventListener('paste', e => {
+    const items = [...(e.clipboardData?.items || [])];
+    const imgItems = items.filter(i => i.type.startsWith('image/'));
+    if (!imgItems.length) return;
+    e.preventDefault();
+    const files = imgItems.map(i => i.getAsFile()).filter(Boolean);
+    loadFiles(files);
+    toast('📋 عکس از کلیپ‌بورد اضافه شد', 'info');
+  });
+
+  // ─── Drop zone drag events ────────────────────────────────────────
+  const dz = document.getElementById('dropzone');
+
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    if (!files.length) { toast('فقط فایل‌های تصویری پشتیبانی می‌شوند', 'error'); return; }
+    loadFiles(files);
+  });
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    loadFiles([...e.target.files]);
+    e.target.value = '';
+  });
+
+  // ─── Load files ──────────────────────────────────────────────────
+  function loadFiles(files) {
+    if (!files.length) return;
+    let loaded = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        images.push({ file, dataUrl: ev.target.result, rotation: 0 });
+        loaded++;
+        if (loaded === files.length) {
+          renderGrid();
+          showToast(`✅ ${files.length} عکس اضافه شد`, 'success');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ─── Render grid ─────────────────────────────────────────────────
+  function renderGrid() {
+    const grid = document.getElementById('imageGrid');
+    grid.innerHTML = '';
+
+    document.getElementById('controlsBar').style.display = images.length ? 'flex' : 'none';
+    document.getElementById('optionsSection').style.display = images.length ? 'flex' : 'none';
+    document.getElementById('divider').style.display = images.length ? 'block' : 'none';
+    document.getElementById('footerAction').style.display = images.length ? 'flex' : 'none';
+    document.getElementById('imgCount').textContent = images.length;
+
+    images.forEach((item, idx) => {
+      const card = document.createElement('div');
+      card.className = 'thumb-card';
+      card.draggable = true;
+      card.dataset.idx = idx;
+
+      card.innerHTML = `
+        <img src="${item.dataUrl}" style="transform: rotate(${item.rotation}deg); transition: transform 0.3s;" alt="عکس ${idx+1}">
+        <div class="thumb-overlay">
+          <span class="thumb-num">${idx + 1}</span>
+          <div class="thumb-actions">
+            <button class="thumb-btn thumb-btn-rot" title="چرخش" onclick="rotateImg(${idx})">↻</button>
+            <button class="thumb-btn thumb-btn-del" title="حذف" onclick="removeImg(${idx})">✕</button>
+          </div>
+        </div>
+        <div class="thumb-name">${item.file.name || 'تصویر'}</div>
+      `;
+
+      // Drag reorder
+      card.addEventListener('dragstart', e => {
+        dragSrc = idx;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.querySelectorAll('.thumb-card').forEach(c => c.classList.remove('drag-target'));
+      });
+      card.addEventListener('dragover', e => {
+        e.preventDefault();
+        document.querySelectorAll('.thumb-card').forEach(c => c.classList.remove('drag-target'));
+        card.classList.add('drag-target');
+      });
+      card.addEventListener('drop', e => {
+        e.preventDefault();
+        if (dragSrc === null || dragSrc === idx) return;
+        const moved = images.splice(dragSrc, 1)[0];
+        images.splice(idx, 0, moved);
+        renderGrid();
+        dragSrc = null;
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  window.removeImg = (idx) => {
+    images.splice(idx, 1);
+    renderGrid();
+    if (!images.length) toast('همه عکس‌ها حذف شدند', 'info');
+  };
+
+  window.rotateImg = (idx) => {
+    images[idx].rotation = (images[idx].rotation + 90) % 360;
+    renderGrid();
+  };
+
+  window.clearAll = () => {
+    images.length = 0;
+    renderGrid();
+    toast('🗑️ همه عکس‌ها پاک شدند', 'info');
+  };
+
+  // ─── PDF generation (lossless — raw bytes) ───────────────────────
+  window.generatePDF = async () => {
+    if (!images.length) { toast('ابتدا عکسی اضافه کنید', 'error'); return; }
+
+    const btn = document.getElementById('exportBtn');
+    const pw  = document.getElementById('progressWrap');
+    const pf  = document.getElementById('progressFill');
+    const pl  = document.getElementById('progressLabel');
+
+    btn.disabled = true;
+    pw.style.display = 'block';
+
+    const pageSizeSel  = document.getElementById('pageSize').value;
+    const marginVal    = parseInt(document.getElementById('pageMargin').value, 10);
+
+    const PAGE_SIZES = {
+      A4:      [595.28, 841.89],
+      A4L:     [841.89, 595.28],
+      A3:      [841.89, 1190.55],
+      Letter:  [612, 792],
+    };
+
+    try {
+      const { PDFDocument } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+
+      for (let i = 0; i < images.length; i++) {
+        const item = images[i];
+        pl.textContent = `پردازش عکس ${i + 1} از ${images.length}...`;
+        pf.style.width = `${Math.round((i / images.length) * 85)}%`;
+
+        // Convert to PNG to preserve quality
+        const imgData = await toFinalBytes(item.dataUrl, item.rotation);
+        let pdfImg;
+
+        if (imgData.type === 'png') {
+          pdfImg = await pdfDoc.embedPng(imgData.bytes);
+        } else {
+          pdfImg = await pdfDoc.embedJpg(imgData.bytes);
+        }
+
+        const { width: iw, height: ih } = pdfImg;
+
+        let pageW, pageH;
+        if (pageSizeSel === 'fit') {
+          pageW = iw + marginVal * 2;
+          pageH = ih + marginVal * 2;
+        } else {
+          [pageW, pageH] = PAGE_SIZES[pageSizeSel];
+        }
+
+        const page = pdfDoc.addPage([pageW, pageH]);
+        const drawW = pageW - marginVal * 2;
+        const drawH = pageH - marginVal * 2;
+
+        // Scale to fit within drawing area, preserving aspect ratio
+        const scale = Math.min(drawW / iw, drawH / ih);
+        const fw = iw * scale;
+        const fh = ih * scale;
+        const x  = marginVal + (drawW - fw) / 2;
+        const y  = marginVal + (drawH - fh) / 2;
+
+        page.drawImage(pdfImg, { x, y, width: fw, height: fh });
+
+        await new Promise(r => setTimeout(r, 0)); // keep UI responsive
+      }
+
+      pf.style.width = '95%';
+      pl.textContent = 'در حال ذخیره‌سازی...';
+
+      const pdfBytes = await pdfDoc.save();
+      pf.style.width = '100%';
+
+      // Download
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `images-${Date.now()}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      toast(`✅ PDF با ${images.length} صفحه دانلود شد`, 'success');
+    } catch (err) {
+      console.error(err);
+      toast('خطا در ساخت PDF: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => {
+        pw.style.display = 'none';
+        pf.style.width = '0%';
+      }, 1500);
+    }
+  };
+
+  // Convert dataUrl + rotation to raw bytes (via canvas only for rotation)
+  function toFinalBytes(dataUrl, rotation) {
+    return new Promise((resolve, reject) => {
+      const isJpeg = dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg');
+      const isPng  = dataUrl.startsWith('data:image/png');
+
+      // No rotation → embed directly (no quality loss)
+      if (rotation === 0) {
+        fetch(dataUrl)
+          .then(r => r.arrayBuffer())
+          .then(buf => {
+            const bytes = new Uint8Array(buf);
+            // strip data URL header bytes (handle via arrayBuffer above)
+            resolve({ bytes, type: isJpeg ? 'jpeg' : 'png' });
+          })
+          .catch(reject);
+        return;
+      }
+
+      // Rotation needed → draw on canvas at original size
+      const img = new Image();
+      img.onload = () => {
+        const rad = (rotation * Math.PI) / 180;
+        const sin = Math.abs(Math.sin(rad));
+        const cos = Math.abs(Math.cos(rad));
+        const cw  = Math.round(img.width * cos + img.height * sin);
+        const ch  = Math.round(img.width * sin + img.height * cos);
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(cw / 2, ch / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+        canvas.toBlob(blob => {
+          blob.arrayBuffer().then(buf => {
+            resolve({ bytes: new Uint8Array(buf), type: 'png' });
+          });
+        }, 'image/png'); // always PNG when rotating to avoid double JPEG loss
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
+  // ─── Toast ────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type = 'info') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  }
+  window.showToast = toast; // alias used in loadFiles
+
+  // Prevent default drag on body
+  document.body.addEventListener('dragover', e => e.preventDefault());
+  document.body.addEventListener('drop', e => e.preventDefault());
+})();
+</script>
+</body>
+</html>

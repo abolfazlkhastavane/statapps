@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VLESS Config Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #151820;
+    --card:      #1c2030;
+    --border:    #2a2f42;
+    --accent:    #5b8af5;
+    --accent2:   #7c4dff;
+    --green:     #3dd68c;
+    --text:      #e2e6f0;
+    --muted:     #6b7494;
+    --danger:    #f56565;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-size: 1.9rem;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.92rem;
+    direction: rtl;
+  }
+
+  .drop-zone {
+    width: 100%;
+    max-width: 700px;
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 60px 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #151c30;
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .drop-zone h2 {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .drop-zone p {
+    font-size: 0.83rem;
+    color: var(--muted);
+  }
+
+  .drop-zone.has-file {
+    border-color: var(--green);
+    background: #0d1a14;
+  }
+
+  .drop-zone.has-file .drop-icon::after {
+    content: '';
+  }
+
+  #results {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .result-header h3 {
+    font-size: 0.95rem;
+    color: var(--text);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+
+  .badge-domain { background: #1a2a4a; color: var(--accent); }
+  .badge-ipv4   { background: #1a2d1a; color: var(--green); }
+  .badge-ipv6   { background: #281a40; color: #b392f0; }
+  .badge-best   { background: #2a1a00; color: #ffaa44; }
+  .badge-other  { background: #222; color: var(--muted); }
+
+  .config-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: border-color 0.15s;
+  }
+
+  .config-card:hover {
+    border-color: #3a4060;
+  }
+
+  .uri-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #a8b4d8;
+    word-break: break-all;
+    line-height: 1.6;
+    margin-top: 10px;
+    position: relative;
+    user-select: all;
+    cursor: text;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--sans);
+  }
+
+  .copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .copy-btn.copied {
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .copy-all-bar {
+    width: 100%;
+    max-width: 700px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+
+  .copy-all-bar span {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .copy-all-btn {
+    padding: 9px 22px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+    font-family: var(--sans);
+  }
+
+  .copy-all-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .copy-all-btn:active { transform: translateY(0); }
+  .copy-all-btn.copied { background: linear-gradient(135deg, #2a7a50, #1a6040); }
+
+  .error-msg {
+    background: #1a0a0a;
+    border: 1px solid #5a2020;
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--danger);
+    font-size: 0.88rem;
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 16px;
+    direction: rtl;
+  }
+
+  .info-note {
+    background: #0f1a28;
+    border: 1px solid #1e3050;
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: #7090c0;
+    font-size: 0.82rem;
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 16px;
+    direction: rtl;
+    line-height: 1.6;
+  }
+
+  .count-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .hidden { display: none !important; }
+
+  /* Scrollable all-configs box */
+  .all-configs-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: #8090b8;
+    word-break: break-all;
+    line-height: 1.8;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+
+  .all-configs-box div { margin-bottom: 4px; }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💦 VLESS URI Converter</h1>
+  <p>فایل JSON کانفیگ Xray/V2Ray را درگ کنید یا انتخاب کنید</p>
+</header>
+
+<div class="drop-zone" id="dropZone">
+  <input type="file" id="fileInput" accept=".json,application/json">
+  <span class="drop-icon" id="dropIcon">📂</span>
+  <h2 id="dropTitle">فایل JSON را اینجا رها کنید</h2>
+  <p id="dropSub">یا کلیک کنید تا انتخاب کنید</p>
+</div>
+
+<div id="errorBox" class="error-msg hidden"></div>
+<div id="infoNote" class="info-note hidden"></div>
+
+<div id="copyAllBar" class="copy-all-bar hidden">
+  <span>کپی همه کانفیگ‌ها — <span id="configCount" class="count-badge">0</span></span>
+  <button class="copy-all-btn" id="copyAllBtn" onclick="copyAll()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    کپی همه
+  </button>
+</div>
+
+<div id="results"></div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const results  = document.getElementById('results');
+const errorBox = document.getElementById('errorBox');
+const infoNote = document.getElementById('infoNote');
+const copyAllBar = document.getElementById('copyAllBar');
+const configCount = document.getElementById('configCount');
+const dropIcon  = document.getElementById('dropIcon');
+const dropTitle = document.getElementById('dropTitle');
+const dropSub   = document.getElementById('dropSub');
+
+let allURIs = [];
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+function processFile(file) {
+  if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+    showError('⚠️ فقط فایل JSON پشتیبانی می‌شود.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      convert(Array.isArray(data) ? data : [data], file.name);
+      dropZone.classList.add('has-file');
+      dropIcon.textContent = '✅';
+      dropTitle.textContent = file.name;
+      dropSub.textContent = 'برای بارگذاری فایل دیگر کلیک کنید';
+    } catch(err) {
+      showError('❌ فایل JSON معتبر نیست: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.remove('hidden');
+  setTimeout(() => errorBox.classList.add('hidden'), 5000);
+}
+
+function getType(remarks) {
+  const r = (remarks || '').toLowerCase();
+  if (r.includes('best')) return 'best';
+  if (r.includes('ipv6')) return 'ipv6';
+  if (r.includes('ipv4')) return 'ipv4';
+  if (r.includes('domain')) return 'domain';
+  return 'other';
+}
+
+function badgeForType(t) {
+  const map = {
+    domain: ['Domain', 'badge-domain'],
+    ipv4:   ['IPv4', 'badge-ipv4'],
+    ipv6:   ['IPv6', 'badge-ipv6'],
+    best:   ['Best Ping', 'badge-best'],
+    other:  ['Other', 'badge-other'],
+  };
+  return map[t] || map.other;
+}
+
+function extractURIs(config) {
+  const outbounds = config.outbounds || [];
+  const uris = [];
+  const proxies = outbounds.filter(o =>
+    o.protocol === 'vless' && o.settings?.vnext?.length > 0
+  );
+
+  for (const ob of proxies) {
+    const vnext = ob.settings.vnext[0];
+    const user  = vnext.users?.[0];
+    if (!user) continue;
+
+    const uuid = user.id;
+    let addr = vnext.address;
+    const port = vnext.port;
+
+    const ss = ob.streamSettings || {};
+    const ws = ss.wsSettings || {};
+    const tls = ss.tlsSettings || {};
+
+    const sni  = tls.serverName ? tls.serverName.toLowerCase() : '';
+    const fp   = tls.fingerprint || '';
+    const alpnArr = tls.alpn || [];
+    const alpn = alpnArr.join(',');
+    const host = ws.host || '';
+    const path = ws.path || '/';
+
+    const isIPv6 = addr.includes(':') && !addr.startsWith('[');
+    if (isIPv6) addr = `[${addr}]`;
+
+    const params = new URLSearchParams({
+      encryption: user.encryption || 'none',
+      security:   ss.security || 'tls',
+      sni,
+      fp,
+      alpn,
+      type: ss.network || 'ws',
+      host,
+      path,
+    });
+
+    const tag = ob.tag || 'proxy';
+    const label = proxies.length > 1
+      ? `${config.remarks || ''} (${tag})`
+      : (config.remarks || 'VLESS');
+
+    const uri = `vless://${uuid}@${addr}:${port}?${params.toString()}#${encodeURIComponent(label)}`;
+    uris.push({ uri, tag, label, addr, remarks: config.remarks });
+  }
+  return uris;
+}
+
+function isBestPing(config) {
+  return (config.remarks || '').toLowerCase().includes('best');
+}
+
+function convert(configs, filename) {
+  results.innerHTML = '';
+  errorBox.classList.add('hidden');
+  infoNote.classList.add('hidden');
+  allURIs = [];
+
+  const notes = [];
+  let totalSingle = 0;
+  let skippedBest = 0;
+
+  for (const config of configs) {
+    if (isBestPing(config)) {
+      skippedBest++;
+      continue;
+    }
+    const uris = extractURIs(config);
+    if (!uris.length) continue;
+    totalSingle += uris.length;
+
+    for (const item of uris) {
+      allURIs.push(item.uri);
+    }
+
+    const type = getType(config.remarks);
+    const [badgeLabel, badgeClass] = badgeForType(type);
+
+    const card = document.createElement('div');
+    card.className = 'config-card';
+
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'result-header';
+
+    const h3 = document.createElement('h3');
+    h3.textContent = config.remarks || 'Config';
+
+    const badge = document.createElement('span');
+    badge.className = `badge ${badgeClass}`;
+    badge.textContent = badgeLabel;
+    h3.appendChild(badge);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> کپی`;
+
+    const uriText = uris.map(u => u.uri).join('\n');
+    copyBtn.addEventListener('click', () => copyText(uriText, copyBtn));
+
+    headerDiv.appendChild(h3);
+    headerDiv.appendChild(copyBtn);
+
+    const uriBox = document.createElement('div');
+    uriBox.className = 'uri-box';
+    uriBox.textContent = uriText;
+
+    card.appendChild(headerDiv);
+    card.appendChild(uriBox);
+    results.appendChild(card);
+  }
+
+  if (skippedBest > 0) {
+    notes.push(`⚡ ${skippedBest} کانفیگ «Best Ping» به دلیل داشتن چند outbound و بالانسر، قابل تبدیل به URI تک‌خطی نیست و نادیده گرفته شد.`);
+  }
+
+  if (notes.length) {
+    infoNote.innerHTML = notes.join('<br>');
+    infoNote.classList.remove('hidden');
+  }
+
+  if (allURIs.length > 0) {
+    configCount.textContent = allURIs.length;
+    copyAllBar.classList.remove('hidden');
+    document.getElementById('copyAllBtn').textContent = '';
+    document.getElementById('copyAllBtn').innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> کپی همه (${allURIs.length} کانفیگ)`;
+  } else {
+    copyAllBar.classList.add('hidden');
+    showError('هیچ کانفیگ VLESS معتبری در فایل یافت نشد.');
+  }
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> کپی شد!`;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyAll() {
+  const btn = document.getElementById('copyAllBtn');
+  navigator.clipboard.writeText(allURIs.join('\n')).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> کپی شد ✓`;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2500);
+  });
+}
+</script>
+</body>
+</html>
