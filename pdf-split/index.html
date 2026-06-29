@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استخراج صفحات PDF</title>
+    <!-- اضافه کردن کتابخانه pdf-lib -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h2 { margin-top: 0; color: #1a73e8; }
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .drop-zone.dragover {
+            border-color: #1a73e8;
+            background-color: #e8f0fe;
+        }
+        .drop-zone p { margin: 0; font-size: 16px; color: #555; }
+        #file-input { display: none; }
+        .controls { display: none; margin-top: 20px; text-align: right; }
+        .controls label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .controls input[type="text"] {
+            width: 100%; padding: 10px;
+            border: 1px solid #ccc; border-radius: 6px;
+            box-sizing: border-box; font-family: inherit; direction: ltr; text-align: left;
+        }
+        button {
+            margin-top: 20px; width: 100%; padding: 12px;
+            background-color: #1a73e8; color: white;
+            border: none; border-radius: 6px; font-size: 16px;
+            cursor: pointer; transition: 0.3s; font-family: inherit;
+        }
+        button:hover { background-color: #1557b0; }
+        #file-name { margin-top: 10px; font-size: 14px; color: #28a745; font-weight: bold; }
+        #status { margin-top: 15px; font-size: 14px; color: #d93025; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>استخراج صفحات از PDF</h2>
+    
+    <div id="drop-zone" class="drop-zone">
+        <p>فایل PDF خود را اینجا بکشید و رها کنید<br>یا برای انتخاب فایل کلیک کنید</p>
+        <input type="file" id="file-input" accept="application/pdf">
+        <div id="file-name"></div>
+    </div>
+
+    <div id="controls" class="controls">
+        <label>شماره صفحات را وارد کنید (مثال: 1, 3, 5-10):</label>
+        <input type="text" id="page-input" placeholder="1, 3, 5-10" required>
+        <button id="extract-btn">ساخت PDF جدید و دانلود</button>
+        <div id="status"></div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    const controls = document.getElementById('controls');
+    const pageInput = document.getElementById('page-input');
+    const extractBtn = document.getElementById('extract-btn');
+    const statusText = document.getElementById('status');
+
+    let currentFile = null;
+
+    // رویدادهای مربوط به Drag & Drop
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        handleFile(file);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        handleFile(file);
+    });
+
+    // بررسی و تایید فایل
+    function handleFile(file) {
+        if (file && file.type === 'application/pdf') {
+            currentFile = file;
+            fileNameDisplay.textContent = 'فایل انتخاب شد: ' + file.name;
+            controls.style.display = 'block';
+            statusText.textContent = '';
+        } else {
+            alert('لطفاً فقط فایل PDF انتخاب کنید.');
+            currentFile = null;
+            controls.style.display = 'none';
+        }
+    }
+
+    // تجزیه کردن رشته ورودی به شماره صفحات منطقی
+    function parsePages(inputString, totalPages) {
+        let pages = new Set();
+        const parts = inputString.split(',');
+
+        for (let part of parts) {
+            part = part.trim();
+            if (!part) continue;
+
+            if (part.includes('-')) {
+                let [start, end] = part.split('-').map(Number);
+                if (start > end) [start, end] = [end, start];
+                for (let i = start; i <= end; i++) {
+                    pages.add(i);
+                }
+            } else {
+                pages.add(Number(part));
+            }
+        }
+
+        // فیلتر کردن صفحاتی که نامعتبرند یا از حد خارجند
+        let validPages = Array.from(pages).filter(p => !isNaN(p) && p > 0 && p <= totalPages);
+        // مرتب سازی
+        validPages.sort((a, b) => a - b);
+        
+        return validPages;
+    }
+
+    // عملیات استخراج PDF
+    extractBtn.addEventListener('click', async () => {
+        if (!currentFile || !pageInput.value.trim()) {
+            statusText.textContent = 'لطفا فایل را انتخاب کرده و صفحات را وارد کنید.';
+            return;
+        }
+
+        statusText.style.color = '#1a73e8';
+        statusText.textContent = 'در حال پردازش...';
+        extractBtn.disabled = true;
+
+        try {
+            const { PDFDocument } = PDFLib;
+            const fileBuffer = await currentFile.arrayBuffer();
+            
+            // بارگیری PDF اصلی
+            const pdfDoc = await PDFDocument.load(fileBuffer);
+            const totalPages = pdfDoc.getPageCount();
+
+            // پردازش ورودی کاربر
+            const pagesToExtract = parsePages(pageInput.value, totalPages);
+            
+            if (pagesToExtract.length === 0) {
+                throw new Error(`صفحات وارد شده نامعتبر است (کل صفحات: ${totalPages})`);
+            }
+
+            // ساخت PDF جدید
+            const newPdfDoc = await PDFDocument.create();
+
+            // pdf-lib بر پایه صفر کار می‌کند، بنابراین باید یکی از اعداد کم کنیم
+            const indicesToExtract = pagesToExtract.map(p => p - 1);
+            
+            // کپی صفحات از پی دی اف اصلی به جدید
+            const copiedPages = await newPdfDoc.copyPages(pdfDoc, indicesToExtract);
+            
+            copiedPages.forEach((page) => {
+                newPdfDoc.addPage(page);
+            });
+
+            // تولید فایل خروجی
+            const pdfBytes = await newPdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            
+            // دانلود فایل
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFile.name.replace('.pdf', '_extracted.pdf');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            statusText.style.color = '#28a745';
+            statusText.textContent = `با موفقیت استخراج و دانلود شد! (${pagesToExtract.length} صفحه)`;
+        } catch (error) {
+            console.error(error);
+            statusText.style.color = '#d93025';
+            statusText.textContent = 'خطا: ' + error.message;
+        } finally {
+            extractBtn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
